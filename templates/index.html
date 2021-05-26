@@ -1,0 +1,356 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Speech2Text|データアーティスト株式会社</title>
+
+<style>
+        body {
+        background: #f2f3f7;
+        }
+
+        tr.border-bottom {
+        padding: 50px;
+        margin: 60px;
+        }
+        tr.border-bottom td {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        table {
+        border: 1px solid #CCC;
+        border-collapse: collapse;
+        width: 95%;
+        }
+
+        td {
+            border: none;
+        }
+
+        .more_section
+        {
+            display: inline-block;
+            padding: 10px 20px;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-weight: 500;
+            background-color: rgb(241, 158, 63);
+            color: #fff;
+            letter-spacing: 2px;
+            border-radius: 20px;
+            box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+            -2px -2px 12px rgba(255, 255, 255,0.5),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                2px 2px 8px rgba(0, 0, 0, 0.15);
+            }
+
+        .outline_section
+        {
+            position: relative;
+            display: inline-block;
+            padding-right: 50px;
+            padding-left: 50px;
+            width:95%;
+            text-decoration: none;
+            color: #5a84a2;
+            border-radius: 20px;
+            box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+            -2px -2px 12px rgba(255, 255, 255, 0.5),
+            inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+            2px 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+            .edit_section
+            {
+                position: relative;
+                display: inline-block;
+                padding: 10px 30px;
+                text-decoration: none;
+                color: #5a84a2;
+                border-radius: 20px;
+                box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+                -2px -2px 12px rgba(255, 255, 255, 0.5),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                2px 2px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .edit_section:hover
+            {
+                box-shadow: inset -2px -2px 8px rgba(255, 255, 255, 1),
+                inset -2px -2px 12px rgba(255, 255, 255, 0.5),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                inset 2px 2px 8px rgba(0, 0, 0, 0.15);  
+            }
+
+            .upload_section
+            {
+                display: inline-block;
+                padding: 10px 20px;
+                text-decoration: none;
+                text-transform: uppercase;
+                font-weight: 500;
+                background-color: #43ace9);
+                color: #fff;
+                letter-spacing: 2px;
+                border-radius: 20px;
+                box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+                -2px -2px 12px rgba(241, 158, 63, 0.5),
+                inset 2px 2px 4px rgba(241, 158, 63, 0.1),
+                2px 2px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .more_section:hover
+            {
+                box-shadow: inset -2px -2px 8px rgba(241, 158, 63, 0.5),
+                inset -2px -2px 12px rgba(255, 255, 255, 0.5),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                inset 2px 2px 8px rgba(0, 0, 0, 0.15);  
+            }
+            .more_section:hover span
+            {
+                display: inline-block;
+                transform: scale(111110.98);
+            }
+
+
+            .collapsible {
+            background-color: rgb(0, 0, 0);
+            color: white;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            }
+            
+            .active, .collapsible:hover {
+            background-color: rgb(45, 206, 131);
+            }
+            
+            .contentx {
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f1f1f1;
+            }
+
+            .container {
+            height: 40px;
+            margin-left:6%;
+            position: relative;
+            }
+
+            .vertical-center {
+            margin-right: 0;
+            position: absolute;
+            padding-right: 6px;
+            top: 50%;
+            -ms-transform: translateY(-50%);
+            transform: translateY(-50%);
+            }
+
+            /* modal_section start */
+
+            .modalDialog {
+            position: fixed;
+            font-family: Arial, Helvetica, sans-serif;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 99999;
+            opacity:0;
+            -webkit-transition: opacity 400ms ease-in;
+            -moz-transition: opacity 400ms ease-in;
+            transition: opacity 400ms ease-in;
+            pointer-events: none;
+            }
+            .modalDialog:target {
+                opacity:1;
+                pointer-events: auto;
+            }
+            .modalDialog > div {
+                width: 400px;
+                position: relative;
+                margin: 10% auto;
+                padding: 5px 20px 13px 20px;
+                border-radius: 10px;
+                background: #fff;
+                /* background: -moz-linear-gradient(#fff, #999);
+                background: -webkit-linear-gradient(#fff, #999);
+                background: -o-linear-gradient(#fff, #999); */
+            }
+            .close {
+                background: #606061;
+                color: #FFFFFF;
+                line-height: 25px;
+                position: absolute;
+                right: -12px;
+                text-align: center;
+                top: -10px;
+                width: 24px;
+                text-decoration: none;
+                font-weight: bold;
+                -webkit-border-radius: 12px;
+                -moz-border-radius: 12px;
+                border-radius: 12px;
+                -moz-box-shadow: 1px 1px 3px #000;
+                -webkit-box-shadow: 1px 1px 3px #000;
+                box-shadow: 1px 1px 3px #000;
+            }
+            .close:hover {
+                background: #00d9ff;
+            }
+
+            /* end of modal section */
+
+            </style>
+
+    {% endblock %}
+
+{% block body %}
+<div id="addo-page"> <a href="#" class="js-addo-nav-toggle addo-nav-toggle"><i></i></a>
+        <!-- Sidebar Section -->
+        <aside id="addo-aside">
+            <!-- Logo -->
+            <div id="addo-logo"> <a href="index.html"><span>議事録書き起こしシール</span></a> </div>
+            <!-- Menu -->
+            <nav id="addo-main-menu">
+                <ul>
+                    <li><a href="">Home</a></li>
+                    <li><a href="index.html#Transcriber">サマリ</a></li>
+                </ul>
+            </nav>
+            <!-- Sidebar Footer -->
+            <div class="addo-footer">
+                <p><small>&copy; 2021 Speech2Text by <a href="">IBDZS</a></small></p>
+            </div>
+        </aside>
+        <!-- Main Section -->
+        <div id="addo-main">
+                <div class="col-12" style="position: relative;padding-right:90px;">
+                        <br>
+                        <div class="container">
+                                <div class="vertical-center">
+                                    <a href="#openModal" class="more_section" style="width:150px;margin:0%;background-color: #43ace9;font-size: 14px; margin-left: auto;margin-right: auto;">ファイル選択</button></a>
+                                </div>
+                            </div>
+                
+                        <p>
+                        </p>
+                
+                        <div id="openModal" class="modalDialog">
+                            <div>	<a href="#close" style="text-align: center" title="Close" class="close">X</a>
+                                <h3>Upload a new file</h3>
+                                <div class="form">
+                                    <form method=post enctype=multipart/form-data>
+                                        <input type="text" name="content" id="content" placeholder="Please type a description of the file">
+                                        <input type=file name=file style="color:orange">
+                                        <input type=submit value=Upload>
+                                    </form>
+                                </div>
+                
+                            </div>
+                        </div>
+                        
+                        <br>
+                        {% if tasks|length < 1 %}
+                        <h4 style="margin-left:8%;">There are no tasks. Create one below!</h4>
+                        {% else %}
+                
+                
+                        <div class="outline_section" style="margin-left:100px;">
+                            <h3>All transcripted files</h3>
+                            <table style="margin-left: auto;margin-right: auto;border: none;"> 
+                                <tr style="border:none;"> 
+                
+                                    <th style="border:none;">
+                                        <div class="col-12" style="
+                                        color: #43ace9;
+                                        background-color: #43ace9;
+                                        letter-spacing: 2px;
+                                        font-size: 16px;
+                                        border-radius: 20px;
+                                        box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+                                        -2px -2px 12px rgba(255, 255, 255, 0.5),
+                                        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                                        2px 2px 8px rgba(0, 0, 0, 0.15);
+                                        padding: 10px;">
+                                            <b style="color: #fff; justify-content: center;padding: 50px;">Transcript</b>
+                                        </div>
+                                    </th>
+                
+                                    <th style="border:none;padding:30px;font-size:16px;"><b>Added date</b></th>
+                                    <th style="border:none;padding:30px;font-size:16px;"><b>Actions</b></th>
+                                </tr>
+                                {% for task in tasks %}
+                                    <tr style="border:none" class="border-bottom"> 
+                                        <td>
+                                        <div class="col-12" style="color: #43ace9;
+                                        letter-spacing: 2px;
+                                        font-size: 16px;
+                                        border-radius: 30px;
+                                        box-shadow: -2px -2px 8px rgba(255, 255, 255, 1),
+                                        -2px -2px 12px rgba(255, 255, 255, 0.5),
+                                        inset 2px 2px 4px rgba(255, 255, 255, 0.1),
+                                        2px 2px 8px rgba(0, 0, 0, 0.15);
+                                        padding:12px;">
+                                                <div class="col-12" style="margin:auto">
+                                                        {{ task.content }}
+                                                </div>
+                                        </div>
+                                        </td>
+                                        <td style="width:91px;text-align: center;">
+                                                {{ task.date_created.date() }}
+                                        </td>
+                                        <td style="width:91px;text-align: center;">
+                                            <a href="/update/{{task.id}}" class="edit_section">
+                                                Edit</button></a>
+                                            <br>
+                                            <a href="/download/{{task.id}}"><button type="button" class="glow-on-hover" onclick="return confirm('Do you want to download this file?')" style="width:100px;color: rgb(255, 255, 255);background-color: #fff">Download</button></a>
+                                            <br>
+                                            <a href="/delete/{{task.id}}"><button type="button" class="glow-on-hover" onclick="return confirm('Are you sure, you want to delete?')" style="width:80px"><b style="color: rgb(226, 82, 82)">Delete</b></button></a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                
+                        </div>
+                        {% endif %}
+                    </div>
+                    <br>
+
+                    <!-- Start of section is for the Collapsible button -->
+                    <script>
+                            var coll = document.getElementsByClassName("collapsible");
+                            var i;
+                            
+                            for (i = 0; i < coll.length; i++) {
+                            coll[i].addEventListener("click", function() {
+                                this.classList.toggle("active");
+                                var content = this.nextElementSibling;
+                                if (content.style.display === "block") {
+                                content.style.display = "none";
+                                } else {
+                                content.style.display = "block";
+                                }
+                            });
+                            }
+                            </script>
+                
+                    <script>
+                        audio_file.onchange = function(){
+                            var files = this.files;
+                            var file = URL.createObjectURL(files[0]); 
+                            audio_player.src = file; 
+                            // audio_player.play();
+                        };
+                    </script>
+                    <!-- End of section is for the Collapsible button -->
+                
+        </div>
+    </div>
+{% endblock %}
