@@ -1,13 +1,5 @@
 from __future__ import unicode_literals
-import os
-
-
-import os
 import io
-
-#os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="/Users/dorjzodovs.batjargal/Desktop/Personal/Speech2Text/Speech2Text_backend/key/top-campaign-313812-50890e9f72d0.json"
-
-# from gcloud import storage
 
 from google.cloud import storage
 

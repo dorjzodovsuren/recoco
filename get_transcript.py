@@ -12,7 +12,7 @@ def transcribe_gcs(gcs_uri):
     audio = speech.RecognitionAudio(uri=gcs_uri)
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        language_code="en-US",
+        language_code="ja-JP",  # en-US
         audio_channel_count=2,
         enable_word_time_offsets=True
     )
@@ -29,5 +29,3 @@ def transcribe_gcs(gcs_uri):
         transcript.append(inst_transcript)
     
     return " ".join(transcript).strip()
-
-#print(transcribe_gcs("gs://inputaudio_website/The Speech that Made Obama President.wav"))

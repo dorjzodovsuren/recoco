@@ -12,17 +12,7 @@ from werkzeug.utils import secure_filename
 from flask import Flask, render_template, url_for, request, redirect, flash
 
 # Authentication 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="/Users/dorjzodovs.batjargal/Desktop/Personal/Speech2Text/Speech2Text_backend/key/top-campaign-313812-50890e9f72d0.json"
-
-
-# print(transcribe_gcs("gs://inputaudio_website/The Speech that Made Obama President.wav"))
-
-
-# bucket_name="inputaudio_website"
-# source_file_name="./saver/MIB2.wav"
-# destination_blob_name="MIB2.wav"
-
-# upload_blob(bucket_name,source_file_name,destination_blob_name)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="./key/top-campaign-313812-50890e9f72d0.json"
 
 
 #-----------------------Start of Flask app settings------------------------------------------------------------------------
@@ -34,7 +24,8 @@ ALLOWED_EXTENSIONS = {'mp4', 'mov', 'wav', 'mp3', 'webm', 'wmv', 'flv'}
 TRANSCRIPT_SAVE_DIR= './transcript/'
 
 
-PORT=5000
+PORT=8000
+bucket_name = "inputaudio_website"
 
 app = Flask(__name__)
 
@@ -80,23 +71,6 @@ def preprocess_text(text):
     return processing_text
 
 
-import assemblyai
-
-#need to be replaced
-def audio2text(URL,YOUR_API_TOKEN):
-
-    aai = assemblyai.Client(token=YOUR_API_TOKEN)
-
-    transcript = aai.transcribe(audio_url=URL,speaker_count=1)
-
-    while transcript.status != 'completed':
-        task_content_func = transcript.get()
-            
-    task_content=task_content_func.text
-
-    return task_content
-
-
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(1000), nullable=False)
@@ -126,32 +100,18 @@ def index():
 
             filename = secure_filename(file.filename)
 
-            destination_blob_name=filename
-
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             video_path=os.path.join(app.config['UPLOAD_FOLDER'], filename)
             filename=audio_saver(filename,video_path)           #modified name of the file
+            
+            destination_blob_name=filename
             filename=os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            source_file_name = filename
 
-            print(destination_blob_name)
+            upload_blob(bucket_name,source_file_name,destination_blob_name)
 
-            # bucket_name="inputaudio_website"
-            # source_file_name="./saver/MIB2.wav"
-            # destination_blob_name="MIB2.wav"
 
-            print(filename)
-
-            # upload_blob(bucket_name,source_file_name,destination_blob_name)
-
-            headers = {'authorization': YOUR_API_TOKEN}
-            response = requests.post('https://api.assemblyai.com/v2/upload',
-                                    headers=headers,
-                                    data=read_file(filename))
-
-            URL=response.json()["upload_url"]
-
-        task_content=audio2text(URL,YOUR_API_TOKEN)
-
+        task_content = transcribe_gcs("gs://"+bucket_name+"/"+destination_blob_name)
         new_task = Todo(content=task_content)
 
         try:
