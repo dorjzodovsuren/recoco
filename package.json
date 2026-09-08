@@ -1,0 +1,12 @@
+{
+  "name": "transformer-tailbarlagch",
+  "version": "1.0.0",
+  "description": "Трансформер хэлний загварын монгол хэл дээрх интерактив үзүүлэн.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/model.test.js",
+    "test:browser": "node tests/browser.test.js",
+    "serve": "python3 serve.py"
+  }
+}
