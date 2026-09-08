@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Трансформер Тайлбарлагч — Хэлний загвар хэрхэн ажилладаг вэ?</title>
+  <meta name="description" content="GPT маягийн трансформер хэлний загварын дотоод бүтцийг монгол хэл дээр интерактив байдлаар тайлбарласан үзүүлэн." />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <h1>Трансформер Тайлбарлагч</h1>
+    <p class="tagline">
+      GPT маягийн хэлний загвар текстийг хэрхэн уншиж, дараагийн үгийг хэрхэн
+      таамагладгийг алхам алхмаар, интерактив байдлаар үзье.
+    </p>
+    <nav class="header-nav">
+      <a href="#tulhuur">Үзүүлэн</a>
+      <a href="#tailbar">Тайлбар</a>
+      <a href="#toli">Нэр томьёо</a>
+      <a href="#zagvar-tuhai">Энэ загварын тухай</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ================= УДИРДЛАГА ================= -->
+  <section id="tulhuur" class="panel controls">
+    <div class="control-row">
+      <label class="field grow">
+        <span class="label">Оролтын текст</span>
+        <input id="prompt" type="text" autocomplete="off"
+               value="Монгол улсын нийслэл хот бол"
+               aria-describedby="prompt-hint" />
+      </label>
+      <button id="generate" class="btn primary" type="button">Дараагийн токен нэмэх</button>
+      <button id="reset" class="btn" type="button">Анхны байдалд</button>
+    </div>
+    <p id="prompt-hint" class="hint">
+      Толь бичигт байхгүй үг <span class="chip unk-chip">&lt;үл-мэдэгдэх&gt;</span> болж хувирна.
+      Жишээ өгүүлбэрүүд:
+      <span class="examples" id="examples"></span>
+    </p>
+
+    <div class="control-row sliders">
+      <label class="field">
+        <span class="label">Температур <output id="temp-out">1.00</output></span>
+        <input id="temperature" type="range" min="0.1" max="2" step="0.05" value="1" />
+        <span class="hint small">Бага утга → баттай, өндөр утга → санамсаргүй.</span>
+      </label>
+      <label class="field">
+        <span class="label">Top-k <output id="topk-out">0 (хязгааргүй)</output></span>
+        <input id="topk" type="range" min="0" max="30" step="1" value="0" />
+        <span class="hint small">Хамгийн магадлалтай k хувилбарыг л үлдээнэ.</span>
+      </label>
+      <label class="field">
+        <span class="label">Top-p <output id="topp-out">1.00</output></span>
+        <input id="topp" type="range" min="0.05" max="1" step="0.05" value="1" />
+        <span class="hint small">Магадлалын нийлбэр p хүрэх хүртэлх хувилбарууд.</span>
+      </label>
+    </div>
+  </section>
+
+  <!-- ================= ДАМЖЛАГА ================= -->
+  <section class="pipeline">
+
+    <!-- 1. Токенчлол -->
+    <article class="panel stage" id="stage-token">
+      <header class="stage-head">
+        <span class="step">1</span>
+        <h2>Токенчлол</h2>
+      </header>
+      <p class="stage-desc">
+        Текстийг эхлээд <strong>токен</strong> буюу жижиг нэгжүүдэд хуваана. Ховор үг
+        нь <em>үндэс + дагавар</em> болж задардаг — жишээ нь «улсын» → «улс» + «##ын».
+        Аль ч токен дээр дарж түүнийг дэлгэрэнгүй үзнэ үү.
+      </p>
+      <div id="tokens" class="tokens" role="listbox" aria-label="Токенууд"></div>
+      <div class="stage-foot"><span id="token-count"></span></div>
+    </article>
+
+    <!-- 2. Эмбеддинг -->
+    <article class="panel stage" id="stage-embed">
+      <header class="stage-head">
+        <span class="step">2</span>
+        <h2>Эмбеддинг ба байрлалын кодчилол</h2>
+      </header>
+      <p class="stage-desc">
+        Токен бүр <strong id="d-model-1"></strong> хэмжээст вектор болно. Эхний
+        <strong id="d-sem-1"></strong> хэмжээс нь <em>утгыг</em>, сүүлийн
+        <strong id="d-pos-1"></strong> хэмжээс нь <em>байрлалыг</em> кодлоно.
+      </p>
+      <div class="matrix-block">
+        <div class="matrix-label">Токен эмбеддинг + байрлалын кодчилол</div>
+        <canvas id="embed-canvas" class="matrix-canvas"></canvas>
+        <div class="axis-note"><span>← токенууд →</span><span>↑ хэмжээсүүд ↓</span></div>
+      </div>
+      <div id="embed-tooltip" class="tooltip" hidden></div>
+    </article>
+
+    <!-- 3. Трансформер блок -->
+    <article class="panel stage wide" id="stage-block">
+      <header class="stage-head">
+        <span class="step">3</span>
+        <h2>Трансформер блок</h2>
+        <div class="tabs" id="block-tabs" role="tablist" aria-label="Блок сонгох"></div>
+      </header>
+      <p class="stage-desc">
+        Блок бүр дараах дарааллаар ажиллана:
+        <span class="flow">LayerNorm → олон толгойт өөрийг-анхаарах → үлдэгдэл нэмэх →
+        LayerNorm → MLP → үлдэгдэл нэмэх</span>.
+      </p>
+
+      <div class="head-tabs" id="head-tabs" role="tablist" aria-label="Анхаарлын толгой сонгох"></div>
+      <p class="head-desc" id="head-desc"></p>
+
+      <div class="qkv-grid">
+        <div class="qkv-item">
+          <div class="matrix-label">Q — Асуулга (Query)</div>
+          <canvas id="q-canvas" class="matrix-canvas short"></canvas>
+        </div>
+        <div class="qkv-item">
+          <div class="matrix-label">K — Түлхүүр (Key)</div>
+          <canvas id="k-canvas" class="matrix-canvas short"></canvas>
+        </div>
+        <div class="qkv-item">
+          <div class="matrix-label">V — Утга (Value)</div>
+          <canvas id="v-canvas" class="matrix-canvas short"></canvas>
+        </div>
+      </div>
+
+      <div class="attn-area">
+        <div class="attn-matrix-wrap">
+          <div class="matrix-label">
+            Анхаарлын жин — softmax(QKᵀ / √d<sub>k</sub>), шалтгаант маасктай
+          </div>
+          <div id="attn-matrix" class="attn-matrix"></div>
+        </div>
+        <div class="attn-detail">
+          <div class="matrix-label">Сонгосон токены анхаарлын хуваарилалт</div>
+          <div id="attn-bars" class="attn-bars"></div>
+        </div>
+      </div>
+
+      <div class="mlp-area">
+        <div class="matrix-label">
+          MLP — <span id="ff-dims"></span>, GELU идэвхжүүлэлттэй
+        </div>
+        <canvas id="mlp-canvas" class="matrix-canvas short"></canvas>
+        <div class="hint small">Сонгосон токены далд давхаргын идэвхжилт (GELU-ийн дараа).</div>
+      </div>
+
+      <div class="resid-area">
+        <div class="matrix-label">Үлдэгдэл урсгал — блокын өмнөх ба дараах төлөв</div>
+        <canvas id="resid-canvas" class="matrix-canvas short"></canvas>
+        <div class="hint small">Дээд мөр: блок руу орох вектор. Доод мөр: блокоос гарах вектор.</div>
+      </div>
+    </article>
+
+    <!-- 4. Гаралт -->
+    <article class="panel stage" id="stage-output">
+      <header class="stage-head">
+        <span class="step">4</span>
+        <h2>Гаралтын магадлал</h2>
+      </header>
+      <p class="stage-desc">
+        Сүүлийн байрлалын вектор нь толь бичгийн бүх токены
+        <strong>логит</strong> болж хувирна. Дараа нь температураар хуваагдаж,
+        <strong>софтмакс</strong>-аар магадлал болно.
+      </p>
+      <div id="probs" class="probs"></div>
+      <div class="stage-foot">
+        <span id="entropy-note"></span>
+      </div>
+    </article>
+  </section>
+
+  <!-- ================= ТАЙЛБАР ================= -->
+  <section id="tailbar" class="article">
+    <h2>Трансформер хэрхэн ажилладаг вэ?</h2>
+
+    <h3>1. Трансформер гэж юу вэ?</h3>
+    <p>
+      <strong>Трансформер</strong> бол 2017 онд «Attention Is All You Need» өгүүлэлд
+      танилцуулагдсан мэдрэлийн сүлжээний архитектур юм. Өнөөдрийн бараг бүх том
+      хэлний загвар — GPT, Claude, Gemini, Llama — энэ архитектур дээр суурилдаг.
+      Гол санаа нь энгийн: загвар нь өмнөх бүх токеныг нэгэн зэрэг харж, тэдгээрийн
+      алийг нь хэр чухалд тооцохоо <em>анхаарлын механизм</em>-аар шийддэг.
+    </p>
+    <p>
+      GPT маягийн загвар нь <strong>зөвхөн декодер</strong> (decoder-only) бүтэцтэй
+      бөгөөд ганц л ажил гүйцэтгэдэг: <em>өмнөх токенуудад тулгуурлан дараагийн
+      токеныг таамаглах</em>. Энэ энгийн зорилготой боловч асар их өгөгдөл дээр
+      сургахад орчуулга, хураангуйлалт, код бичих зэрэг чадвар өөрөө үүсдэг.
+    </p>
+
+    <h3>2. Токенчлол</h3>
+    <p>
+      Загвар үсэг эсвэл үгээр биш, <strong>токен</strong>-оор боддог. Бодит GPT-2 нь
+      <em>Byte Pair Encoding (BPE)</em> аргаар 50 257 токентой толь бичиг үүсгэдэг.
+      Түгээмэл үг бүтнээрээ нэг токен болдог бол ховор үг хэд хэдэн хэсэгт хуваагддаг.
+    </p>
+    <p>
+      Монгол хэл нь залгамал (агглютинатив) хэл тул дагавар нь тусдаа токен болох нь
+      маш байгалийн юм. Энэ үзүүлэнд «улсын» → «улс» + «##ын» болж задардаг. «##»
+      тэмдэг нь «энэ нь өмнөх токеныг үргэлжлүүлж байна» гэсэн утгатай.
+    </p>
+
+    <h3>3. Эмбеддинг</h3>
+    <p>
+      Токен бүр өөрийн гэсэн <strong>вектор</strong>-той. Ойролцоо утгатай үгс
+      векторын огторгуйд ойрхон байрлана. Энэ үзүүлэнд эмбеддингүүдийг корпусын
+      хамт тохиолдлын статистикаас (PPMI) байгуулсан тул «зун» ба «өвөл», эсвэл
+      «уншиж» ба «унших» зэрэг үгс ойролцоо байрлана.
+    </p>
+
+    <h3>4. Байрлалын кодчилол</h3>
+    <p>
+      Анхаарлын механизм өөрөө дарааллыг мэдэрдэггүй — түүний хувьд «нохой хүнийг
+      хазав» ба «хүн нохойг хазав» ижил байх болно. Тиймээс байрлалын мэдээллийг
+      тусад нь нэмнэ. Энд өөр өөр давтамжтай <strong>синус ба косинус</strong> долгион
+      ашигласан. Ийм кодчилолын гоц шинж нь: нэг байрлалын векторыг эргүүлэх замаар
+      хөрш байрлалын векторыг гаргаж авч болдог. Яг үүнийг ашиглан 1-р анхаарлын
+      толгой «өмнөх токен»-ыг олдог.
+    </p>
+
+    <h3>5. Өөрийг-анхаарах механизм</h3>
+    <p>
+      Токен бүр гурван вектор гаргана:
+    </p>
+    <ul>
+      <li><strong>Q (Query / Асуулга)</strong> — «Би ямар мэдээлэл хайж байна вэ?»</li>
+      <li><strong>K (Key / Түлхүүр)</strong> — «Надад ямар мэдээлэл бий вэ?»</li>
+      <li><strong>V (Value / Утга)</strong> — «Сонгогдвол би юуг дамжуулах вэ?»</li>
+    </ul>
+    <p class="formula">
+      Анхаарал(Q, K, V) = softmax( Q·K<sup>T</sup> / √d<sub>k</sub> + маск ) · V
+    </p>
+    <p>
+      Асуулга ба түлхүүрийн <em>скаляр үржвэр</em> нь хоёр токены хоорондын
+      хамаарлын хүчийг хэмждэг. Үүнийг √d<sub>k</sub>-д хуваах нь градиентийг
+      тогтворжуулна. Дараа нь <strong>шалтгаант маск</strong> (causal mask) ирээдүйн
+      токенуудыг −∞ болгож хаана — загвар хариултыг урьдчилж харж болохгүй.
+      Эцэст нь софтмакс нь жингүүдийг нийлбэр нь 1 болох магадлал болгоно.
+    </p>
+
+    <h3>6. Олон толгойт анхаарал</h3>
+    <p>
+      Нэг анхаарлын толгой нэг төрлийн хамаарлыг л барьж чадна. Тиймээс хэд хэдэн
+      толгойг зэрэг ажиллуулж, тус бүрийг өөр дэд огторгуйд харуулна. Энэ үзүүлэнгийн
+      дөрвөн толгой нь бодит загварт ажигладдаг сонгодог хэв маягуудыг харуулна:
+    </p>
+    <ul>
+      <li><strong>Өмнөх токен толгой</strong> — байрлалын кодчилолыг эргүүлэх замаар яг өмнөх токеныг олно.</li>
+      <li><strong>Эхний токен толгой</strong> — дарааллын эхлэл рүү татагдана. Бодит загварт үүнийг «анхаарлын тогтоор» (attention sink) гэдэг.</li>
+      <li><strong>Утгын төстэй байдлын толгой</strong> — ижил төстэй эмбеддингтэй токенуудыг холбоно.</li>
+      <li><strong>Холимог толгой</strong> — байрлал ба утгыг хольсон, тархсан хэв маяг.</li>
+    </ul>
+    <p>
+      Толгойнуудын гаралтыг нийлүүлээд (concatenate) W<sub>O</sub> матрицаар буцаан
+      проекцлоно. Энэ үзүүлэнд W<sub>O</sub>-г W<sub>V</sub>-ийн шилжүүлсэн хэлбэрээр
+      байгуулсан тул анхаарал нь контекстээс мэдээллийг одоогийн байрлал руу
+      үнэхээр «хуулж» ирдэг — үүнийг судлаачид <em>хуулах хэлхээ</em> (copy circuit)
+      гэж нэрлэдэг.
+    </p>
+
+    <h3>7. MLP давхарга</h3>
+    <p>
+      Анхаарал нь токенуудын <em>хооронд</em> мэдээлэл зөөдөг бол MLP нь токен
+      <em>тус бүр дээр</em> тусад нь ажиллаж, цуглуулсан мэдээллийг боловсруулна.
+      Бүтэц нь энгийн: хэмжээсийг 4 дахин өргөсгөж, GELU идэвхжүүлэлт хийж, буцаан
+      багасгана. Загварын параметрийн ойролцоогоор гуравны хоёр нь эдгээр давхаргад
+      байдаг бөгөөд «баримт мэдлэг» голчлон энд хадгалагддаг гэж үздэг.
+    </p>
+
+    <h3>8. LayerNorm ба үлдэгдэл холболт</h3>
+    <p>
+      Дэд давхарга бүрийн өмнө <strong>LayerNorm</strong> нь векторыг дундаж 0,
+      дисперс 1 болгож нормчилно. Дэд давхарга бүрийн дараа гаралтыг оролт дээр
+      нэмнэ — үүнийг <strong>үлдэгдэл холболт</strong> (residual connection) гэнэ.
+      Ингэснээр «үлдэгдэл урсгал» үүсэх бөгөөд давхарга бүр түүнийг бүрэн
+      дарж бичихийн оронд зөвхөн засвар нэмдэг. Энэ нь гүн сүлжээг сургах
+      боломжтой болгосон гол шийдэл юм.
+    </p>
+
+    <h3>9. Гаралтын магадлал: логит, температур, түүвэрлэлт</h3>
+    <p>
+      Сүүлийн байрлалын вектороос толь бичгийн токен бүрд <strong>логит</strong>
+      оноо тооцно. Дараа нь:
+    </p>
+    <ul>
+      <li><strong>Температур</strong> — логитыг T-д хуваана. T &lt; 1 бол тархалт хурцдаж загвар илүү баттай, T &gt; 1 бол тархалт тэгшрэн илүү санамсаргүй болно.</li>
+      <li><strong>Top-k</strong> — зөвхөн хамгийн өндөр k хувилбарыг үлдээж бусдыг хасна.</li>
+      <li><strong>Top-p</strong> (nucleus) — магадлалын нийлбэр p хүрэх хамгийн бага олонлогийг үлдээнэ.</li>
+    </ul>
+    <p>
+      Дараа нь энэ тархалтаас нэг токеныг түүвэрлэж, оролтын төгсгөлд нэмээд
+      бүх процессыг дахин эхнээс нь давтана. Ийм байдлаар үг үгээр текст үүсдэг.
+      «Дараагийн токен нэмэх» товчийг дарж үүнийг өөрөө туршиж үзээрэй.
+    </p>
+
+    <h3 id="zagvar-tuhai">10. Энэ үзүүлэнгийн загварын тухай</h3>
+    <p class="callout">
+      Энэ хуудсан дээрх загвар нь <strong>GPT-2 биш</strong>. Энэ бол сурах
+      зорилгоор бүтээсэн жижиг <strong>үзүүлэн загвар</strong> юм:
+    </p>
+    <ul>
+      <li>Бүх матрицын үйлдэл — эмбеддинг, байрлалын кодчилол, LayerNorm, олон толгойт анхаарал, шалтгаант маск, GELU бүхий MLP, үлдэгдэл холболт, софтмакс — <strong>бодитоор таны хөтөч дээр тооцоологдож</strong> байгаа.</li>
+      <li>Харин жингүүд нь градиент буурлалтаар <strong>сургагдаагүй</strong>. Эмбеддинг ба зайлуулах матрицыг жижиг монгол корпусын хамт тохиолдлын статистикаас (PPMI) байгуулж, анхаарлын толгойнуудыг тайлбарлахад хялбар байхаар зориудаар зохион байгуулсан.</li>
+      <li>Тиймээс таамаглал нь голчлон сүүлийн хэдэн токенд тулгуурладаг бөгөөд бодит хэлний загварын чадварыг илэрхийлэхгүй. Зорилго нь <em>үр дүн</em> биш, <em>механизм</em>-ыг харуулах явдал юм.</li>
+      <li>Толь бичиг нь ердөө <span id="vocab-size-note"></span> токентой (GPT-2 нь 50 257).</li>
+    </ul>
+
+    <h3 id="toli">Нэр томьёоны толь</h3>
+    <div class="table-scroll">
+    <table class="glossary">
+      <thead><tr><th>Англи</th><th>Монгол</th><th>Тайлбар</th></tr></thead>
+      <tbody>
+        <tr><td>Token</td><td>Токен</td><td>Текстийн хамгийн жижиг боловсруулах нэгж</td></tr>
+        <tr><td>Tokenization</td><td>Токенчлол</td><td>Текстийг токен болгон хуваах үйлдэл</td></tr>
+        <tr><td>Vocabulary</td><td>Толь бичиг</td><td>Загварын мэддэг бүх токены жагсаалт</td></tr>
+        <tr><td>Embedding</td><td>Эмбеддинг</td><td>Токеныг илэрхийлэх нягт вектор</td></tr>
+        <tr><td>Positional encoding</td><td>Байрлалын кодчилол</td><td>Токены дараалал дахь байрыг илэрхийлэх дохио</td></tr>
+        <tr><td>Self-attention</td><td>Өөрийг-анхаарах механизм</td><td>Токенууд бие биедээ жин өгөх үйл явц</td></tr>
+        <tr><td>Query / Key / Value</td><td>Асуулга / Түлхүүр / Утга</td><td>Анхаарлын гурван проекц</td></tr>
+        <tr><td>Attention weights</td><td>Анхаарлын жин</td><td>Токен хоорондын хамаарлын магадлал</td></tr>
+        <tr><td>Causal mask</td><td>Шалтгаант маск</td><td>Ирээдүйн токеныг харахыг хориглох маск</td></tr>
+        <tr><td>Multi-head attention</td><td>Олон толгойт анхаарал</td><td>Хэд хэдэн анхаарлыг зэрэг ажиллуулах</td></tr>
+        <tr><td>Feed-forward / MLP</td><td>Шууд дамжуулах давхарга / MLP</td><td>Токен тус бүр дээр ажиллах хоёр давхаргат сүлжээ</td></tr>
+        <tr><td>Activation (GELU)</td><td>Идэвхжүүлэлт (GELU)</td><td>Шугаман бус хувиргалт</td></tr>
+        <tr><td>Layer normalization</td><td>Давхаргын нормчлол</td><td>Векторыг дундаж 0, дисперс 1 болгох</td></tr>
+        <tr><td>Residual connection</td><td>Үлдэгдэл холболт</td><td>Давхаргын гаралтыг оролт дээр нэмэх</td></tr>
+        <tr><td>Logits</td><td>Логит</td><td>Софтмаксын өмнөх нормчлогдоогүй оноо</td></tr>
+        <tr><td>Softmax</td><td>Софтмакс</td><td>Оноог магадлал болгох функц</td></tr>
+        <tr><td>Temperature</td><td>Температур</td><td>Тархалтын хурц/тэгш байдлыг тохируулах параметр</td></tr>
+        <tr><td>Top-k / Top-p sampling</td><td>Top-k / Top-p түүвэрлэлт</td><td>Хувилбарын багцыг хязгаарлах аргууд</td></tr>
+        <tr><td>Transformer block</td><td>Трансформер блок</td><td>Анхаарал + MLP-ээс бүрдэх давтагдах нэгж</td></tr>
+        <tr><td>Parameters / weights</td><td>Параметр / жин</td><td>Сургалтын явцад тохируулагддаг тоонууд</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Эх сурвалж ба талархал</h3>
+    <p>
+      Энэхүү төслийн санаа нь Georgia Tech-ийн Polo Club of Data Science багийн
+      <a href="https://poloclub.github.io/transformer-explainer/" rel="noopener" target="_blank">Transformer&nbsp;Explainer</a>
+      төслөөс сэдэвлэсэн болно. Энд байгаа код, эх бичвэр, загвар нь бүхэлдээ
+      бие даан, монгол хэлээр шинээр бичигдсэн, тухайн төслийн эх кодыг хуулаагүй болно.
+      Архитектурын үндэс нь Vaswani нар (2017), «Attention Is All You Need» өгүүлэл юм.
+    </p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Трансформер Тайлбарлагч — монгол хэл дээрх интерактив үзүүлэн. MIT лиценз.</p>
+    <p class="small">Бүх тооцоолол таны хөтөч дээр, гадаад сервер ашиглалгүй хийгдэнэ.</p>
+  </div>
+</footer>
+
+<script src="assets/js/corpus.js"></script>
+<script src="assets/js/model.js"></script>
+<script src="assets/js/viz.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
